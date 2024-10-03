@@ -67,6 +67,10 @@ def sampleTypes(selection, fnames, settings, oneperfile = True, concordance = No
                     selection[target_type] -= 1
                     tokens.add(tid)
                     final_files.add(file)
+                    
+                    # Add this or else it will take all tokens regardless of the value of selection.
+                    if selection[target_type] == 0:
+                        break
     if concordance is not None:
         tokhan = TokenHandler(query, settings=settings)
         tokens = tokhan.retrieve_tokens(fnames = list(final_files)).submatrix(row = list(tokens))
