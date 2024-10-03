@@ -23,7 +23,7 @@ def booleanize(mtx, include_negative = True):
     """
     # For PPMI matrices, include_negative should be False
     boolean_array = mtx.matrix.toarray() != 0 if include_negative else mtx.matrix.toarray() > 0
-    boolean_sparse = sparse.csr_matrix(boolean_array.astype(np.int))
+    boolean_sparse = sparse.csr_matrix(boolean_array.astype(np.int64)) #np.int is outdated. Use np.int64
     return TypeTokenMatrix(boolean_sparse, mtx.row_items, mtx.col_items).drop(axis = 1, n_nonzero = 0)
 
 def listCws(tokens):
