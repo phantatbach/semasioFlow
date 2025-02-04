@@ -9,7 +9,7 @@ from nephosem.utils import save_concordance
 
 __all__ = ['sampleTypes']
 
-def sampleTypes(selection, fnames, settings, oneperfile = True, concordance = None):
+def sampleTypes(selection, fnames, settings, oneperfile = True, concordance = None, seed = None):
     """Generate a random sample of tokens and the list of files required to extract them.
 
     Parameters
@@ -24,12 +24,18 @@ def sampleTypes(selection, fnames, settings, oneperfile = True, concordance = No
         Whether only one token of each lemma can be extracted from the same file.
     concordance : str
         File name to store concordance. If `None`, then no concordance is generated.
+    seed: int
+        Seed for reproducibility.
 
     Returns
     -------
     tuple
         A list of token IDs and the list of files where they can be found. Not separated by type.
     """
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+        
     formatter = CorpusFormatter(settings)
     if type(fnames) == str:
         with open(fnames, "r") as f:
