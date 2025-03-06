@@ -121,6 +121,64 @@ def listContextwords(type_name, tokenlist, fnames, settings, left_win = None, ri
     cws = pd.DataFrame(cws).transpose()
     return cws
 
+def listContextsentences(type_name, tokenlist, fnames, settings):
+    """Extracts full sentences containing each token and reconstructs sentence context.
+
+    Parameters
+    ----------
+    type_name : str
+        Name of the type.
+    tokenlist : list of str
+        List of token IDs.
+    fnames : list of str
+        List of file names to find the tokens in.
+    settings : dict
+        Settings as created for the full workflow.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        Data frame with one row per token, containing the full sentence context.
+    """
+    formatter = CorpusFormatter(settings)
+    text_variables = formatter.global_columns
+    cs = {}
+    basic_dict = {'target_lemma': type_name}
+
+    for file in tqdm(fnames):
+        # Get the line and file name
+        tokens = [(int(tokid.split('/')[3]) - 1, tokid)
+                  for tokid in tokenlist if tokid.split("/")[2] == Path(file).stem]
+        
+        with open(file, 'r', encoding=settings['file-encoding']) as f:
+            lines = [s.strip() for s in f.readlines()]
+
+        for index, tokid in tokens:
+            tokendict = basic_dict.copy()
+            tokendict.update({'token_id': tokid})
+
+            # Identify sentence boundaries
+            start_idx = max([i for i in range(index, -1, -1) if lines[i].startswith("<s")], default=0)
+            end_idx = min([i for i in range(index, len(lines)) if lines[i].startswith("</s>")], default=len(lines) - 1)
+            
+            # Extract structured word data within the sentence range
+            sentence_words = []
+
+            for i in range(start_idx, end_idx + 1):
+                match = formatter.match_line(lines[i])
+                if match:
+                    word_info = {k: v for k, v in zip(text_variables, match.groups())}
+                    sentence_words.append(word_info['word'])  # Extract only word form
+            
+            # Construct the full sentence as a string
+            full_sentence = " ".join(sentence_words)
+
+            # Store results
+            tokendict['sentence'] = full_sentence
+            cs[tokid] = tokendict
+
+    return pd.DataFrame(cs).transpose()
+
 def findLabel(target_lid, cw_lid, sent, goal, explicit):
     """Label item in dependency path.
     
