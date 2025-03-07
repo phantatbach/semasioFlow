@@ -122,59 +122,82 @@ def listContextwords(type_name, tokenlist, fnames, settings, left_win = None, ri
     return cws
 
 def listContextsentences(type_name, tokenlist, fnames, settings):
-    """Extracts full sentences containing each token and reconstructs sentence context.
+    """Extract entire sentences containing the target tokens and highlight the correct target occurrence.
 
     Parameters
     ----------
     type_name : str
-        Name of the type.
+        Name of the type (lemma/word type).
     tokenlist : list of str
         List of token IDs.
     fnames : list of str
         List of file names to find the tokens in.
     settings : dict
-        Settings as created for the full workflow.
+        Configuration settings.
 
     Returns
     -------
     :class:`pandas.DataFrame`
-        Data frame with one row per token, containing the full sentence context.
+        Data frame where each row represents a token with its full sentence context,
+        with the correct target occurrence wrapped in TAR<>TAR tags.
     """
     formatter = CorpusFormatter(settings)
-    text_variables = formatter.global_columns
+    text_variables = formatter.global_columns  # Ensure consistent columns
     cs = {}
     basic_dict = {'target_lemma': type_name}
 
     for file in tqdm(fnames):
-        # Get the line and file name
         tokens = [(int(tokid.split('/')[3]) - 1, tokid)
                   for tokid in tokenlist if tokid.split("/")[2] == Path(file).stem]
         
         with open(file, 'r', encoding=settings['file-encoding']) as f:
             lines = [s.strip() for s in f.readlines()]
-
+        
         for index, tokid in tokens:
             tokendict = basic_dict.copy()
             tokendict.update({'token_id': tokid})
 
-            # Identify sentence boundaries
+            # Find the sentence boundaries
             start_idx = max([i for i in range(index, -1, -1) if lines[i].startswith("<s")], default=0)
-            end_idx = min([i for i in range(index, len(lines)) if lines[i].startswith("</s>")], default=len(lines) - 1)
-            
+            end_idx = min([i for i in range(index, len(lines)) if lines[i].startswith("</s>")], default=len(lines)-1)
+
             # Extract structured word data within the sentence range
             sentence_words = []
+            structured_data = []  # Store structured info per token
+            target_word = None
+            target_occurrence = 0  # Track which instance of the word we need to modify
 
             for i in range(start_idx, end_idx + 1):
                 match = formatter.match_line(lines[i])
                 if match:
                     word_info = {k: v for k, v in zip(text_variables, match.groups())}
-                    sentence_words.append(word_info['word'])  # Extract only word form
-            
+                    structured_data.append(word_info)
+                    word_form = word_info['word']  # Extract only word form
+
+                    # Identify the target occurrence
+                    if i == index:
+                        target_word = word_form
+                        target_occurrence += 1  # This marks the exact token occurrence we need to highlight
+
+                    sentence_words.append(word_form)  # Store word forms
+
+            # Ensure we found the correct word to highlight
+            if target_word and target_word in sentence_words:
+                count = 0
+                for i, word in enumerate(sentence_words):
+                    if word == target_word:
+                        count += 1
+                        if count == target_occurrence:
+                            sentence_words[i] = f"TAR<{word}>TAR"
+                            break  # Replace only the correct instance
+
             # Construct the full sentence as a string
             full_sentence = " ".join(sentence_words)
 
             # Store results
-            tokendict['sentence'] = full_sentence
+            tokendict['full_sentence'] = " ".join([w['word'] for w in structured_data])  # Original without highlights
+            tokendict['highlighted_sentence'] = full_sentence
+            # tokendict['structured_data'] = structured_data  # Store structured corpus data
             cs[tokid] = tokendict
 
     return pd.DataFrame(cs).transpose()
