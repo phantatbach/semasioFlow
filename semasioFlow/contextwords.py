@@ -195,8 +195,8 @@ def listContextsentences(type_name, tokenlist, fnames, settings):
             full_sentence = " ".join(sentence_words)
 
             # Store results
-            tokendict['full_sentence'] = " ".join([w['word'] for w in structured_data])  # Original without highlights
-            tokendict['highlighted_sentence'] = full_sentence
+            tokendict['full_sent'] = " ".join([w['word'] for w in structured_data])  # Original without highlights
+            tokendict['hl_sent'] = full_sentence
             # tokendict['structured_data'] = structured_data  # Store structured corpus data
             cs[tokid] = tokendict
 
